@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "package:flutter/rendering.dart";
 import "package:flutter/widgets.dart";
 import "package:listatarefas/models/todo.dart";
+import "package:listatarefas/repositories/todo_repository.dart";
 import "package:listatarefas/widgets/todoListItem.dart";
 
 class TodoListPage extends StatefulWidget {
@@ -13,7 +14,20 @@ class TodoListPage extends StatefulWidget {
 
 class _TodoListPageState extends State<TodoListPage> {
   final TextEditingController todoController = TextEditingController();
+  final TodoRepository todoRepository = TodoRepository();
   List<Todo> todos = [];
+
+  String? errorText;
+
+  @override
+  void initState() {
+    super.initState();
+    todoRepository.getTodoList().then((valueFromJson) {
+      setState(() {
+        todos = valueFromJson;
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,10 +45,17 @@ class _TodoListPageState extends State<TodoListPage> {
                   Expanded(
                     child: TextField(
                       controller: todoController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         border: OutlineInputBorder(),
                         labelText: "Adicionar uma Nova Tarefa",
                         hintText: "Estudar Enem",
+                        errorText: errorText,
+                        focusedBorder: const OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: Colors.deepOrange,
+                            width: 5,
+                          )
+                        )
                       ),
                     ),
                   ),
@@ -46,10 +67,15 @@ class _TodoListPageState extends State<TodoListPage> {
                       setState(() {
                         String text = todoController.text;
                         if (text.isNotEmpty) {
+                          errorText = null;
                           Todo todo =
                               new Todo(title: text, dateTime: DateTime.now());
                           todos.add(todo);
                           todoController.clear();
+                          todoRepository.saveTodoList(todos);
+                        } else {
+                          errorText = "Titulo não pode ser Vazio";
+                          return;
                         }
                       });
                     },
@@ -94,6 +120,7 @@ class _TodoListPageState extends State<TodoListPage> {
                     onPressed: () {
                       setState(() {
                         todos.clear();
+                        todoRepository.saveTodoList(todos);
                       });
                     },
                     style: ElevatedButton.styleFrom(
@@ -118,16 +145,30 @@ class _TodoListPageState extends State<TodoListPage> {
   void onDelete(Todo todo) {
     setState(() {
       todos.remove(todo);
+      todoRepository.saveTodoList(todos);
     });
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text("Tarefa ${todo.title} Removida Com Sucesso",style: const TextStyle(fontWeight: FontWeight.w600,  color: Color.fromARGB(255, 255, 255, 255,)),),
+      content: Text(
+        "Tarefa ${todo.title} Removida Com Sucesso",
+        style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Color.fromARGB(
+              255,
+              255,
+              255,
+              255,
+            )),
+      ),
       backgroundColor: const Color.fromARGB(255, 54, 201, 9),
-      action:SnackBarAction(label: "Desfazer",textColor: Colors.black ,onPressed: ()=>{
-       setState(() {
-          todos.add(todo);
-       })
-      }),
+      action: SnackBarAction(
+          label: "Desfazer",
+          textColor: Colors.black,
+          onPressed: () => {
+                setState(() {
+                  todos.add(todo);
+                })
+              }),
       duration: const Duration(seconds: 3),
     ));
   }
